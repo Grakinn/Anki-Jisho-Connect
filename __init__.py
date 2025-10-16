@@ -206,7 +206,7 @@ TRANSLATIONS = {
     },
     "pt": {
         # Config Dialog
-        "settings_title": "Configurações da Integração Jisho",
+        "settings_title": "Configurações da Anki Jisho Connect",
         "language": "Idioma:",
         "main_settings": "Configurações Principais",
         "note_type": "Tipo de Nota:",
@@ -222,7 +222,7 @@ TRANSLATIONS = {
         "info_settings_saved": "Configurações salvas!",
 
         # Results Dialog
-        "results_title": "Resultado da Integração Jisho",
+        "results_title": "Resultado da Anki Jisho Connect",
         "search_placeholder": "Digite um texto em japonês ou uma palavra em inglês...",
         "search_button": "Buscar",
         "confirm_entry": "Confirmar Entrada",

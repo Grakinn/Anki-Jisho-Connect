@@ -1,0 +1,22 @@
+{
+  "name": "Anki Jisho Connect",
+  "version": "3.8.9",
+  "description": "Anki Add-on that automates Japanese-English dictionary lookups using Jisho.org, allowing users to search Japanese terms and automatically fill card fields with definitions, readings, meanings, and other information. Provides advanced configuration, field mapping, multi-selection support, and streamlines efficient note creation for study.",
+  "author": "Grakinn",
+  "version": "3.8",
+  "min_point_version": 2,
+  "max_point_version": 99,
+  "supported_platforms": ["windows"],
+  "tags": ["anki", "japanese", "dictionary", "jisho", "language-learning", "card-mapping", "gui", "lookup", "automation", "import", "study-aid"],
+  "license": "MIT",
+  "license_observations": "Free for anyone to use, modify, and distribute for any purpose, provided credit is given to the original author (Grakinn).",
+  "addon_type": "anki-addon",
+  "init_py": "__init__.py",
+  "icon": "jisho_icon.svg",
+  "config": "config.json",
+  "files": [
+    "__init__.py",
+    "config.json",
+    "jisho_icon.svg"
+  ]
+}

@@ -167,7 +167,7 @@ theme = DarkTheme if theme_manager.night_mode else LightTheme
 TRANSLATIONS = {
     "en": {
         # Config Dialog
-        "settings_title": "Anki Jisho Connect Settings",
+        "settings_title": "GRKN Anki Jisho Connect Settings",
         "language": "Language:",
         "main_settings": "Main Settings",
         "note_type": "Note Type:",
@@ -183,7 +183,7 @@ TRANSLATIONS = {
         "info_settings_saved": "Settings saved!",
 
         # Results Dialog
-        "results_title": "Anki Jisho Connect Result",
+        "results_title": "GRKN Anki Jisho Connect Result",
         "search_placeholder": "Enter any Japanese text or English word...",
         "search_button": "Search",
         "confirm_entry": "Confirm Entry",
@@ -206,7 +206,7 @@ TRANSLATIONS = {
     },
     "pt": {
         # Config Dialog
-        "settings_title": "Configurações da Anki Jisho Connect",
+        "settings_title": "Configurações da GRKN Anki Jisho Connect",
         "language": "Idioma:",
         "main_settings": "Configurações Principais",
         "note_type": "Tipo de Nota:",
@@ -222,7 +222,7 @@ TRANSLATIONS = {
         "info_settings_saved": "Configurações salvas!",
 
         # Results Dialog
-        "results_title": "Resultado da Anki Jisho Connect",
+        "results_title": "Resultado da GRKN Anki Jisho Connect",
         "search_placeholder": "Digite um texto em japonês ou uma palavra em inglês...",
         "search_button": "Buscar",
         "confirm_entry": "Confirmar Entrada",
@@ -259,7 +259,7 @@ def set_language(lang_code: str):
 # -------------------------
 # Global References
 # -------------------------
-ADDON_FOLDER = os.path.join(mw.pm.addonFolder(), "Anki Jisho Connect")
+ADDON_FOLDER = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(ADDON_FOLDER, "config.json")
 _jisho_dialog_ref: Optional['ResultsDialog'] = None
 _config_dialog_ref: Optional['ConfigDialog'] = None
@@ -320,7 +320,7 @@ class ConfigDialog(QDialog):
     """Dialog for configuring the add-on."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Anki Jisho Connect Settings")
+        self.setWindowTitle("GRKN Anki Jisho Connect Settings")
         self.setMinimumWidth(500)
         
         self.config = load_config()
@@ -502,7 +502,7 @@ class ConfigDialog(QDialog):
         """Limpa e recria o grid de mapeamento com base em self.mapping_rows_data."""
         self._clear_layout(self.mapping_grid_layout)
         
-        jisho_options = ["", "Word", "Reading", "Meaning", "Part of speech", "Info", "Other forms", "JLPT Level"]
+        jisho_options = ["", "Word", "Reading", "Meaning", "Part of speech", "Info", "Tags", "Other forms", "JLPT Level", "Wanikani Level", "Is_Common"]
         reorder_button_style = f"..." 
         remove_button_style = f"..." 
 
@@ -700,7 +700,7 @@ class ResultsDialog(QDialog):
         self.on_select = on_select
         self.initial_term = initial_term
         self.entry_widgets = []
-        self.setWindowTitle("Anki Jisho Connect Result")
+        self.setWindowTitle("GRKN Anki Jisho Connect Result")
         self.setMinimumSize(700, 750)
         
         main_layout = QVBoxLayout(self)
@@ -968,16 +968,20 @@ class ResultsDialog(QDialog):
         layout.addLayout(header_layout)
         tags_layout = QHBoxLayout()
         tags_layout.setSpacing(7)
+        # Exibe is_common, JLPT e Wanikani se existirem
         if entry.get("is_common"):
             tags_layout.addWidget(self._create_tag_widget("common word", theme.SUCCESS, theme.SUCCESS_TEXT))
-        for tag in entry.get("jlpt", []):
-            tags_layout.addWidget(self._create_tag_widget(tag, theme.INFO, theme.INFO_TEXT))
-        for tag in entry.get("tags", []):
-            if "wanikani" in tag:
-                tags_layout.addWidget(self._create_tag_widget(tag, theme.WARNING, theme.WARNING_TEXT))
+        if entry.get("jlpt"):
+            for tag in entry.get("jlpt", []):
+                tags_layout.addWidget(self._create_tag_widget(tag, theme.INFO, theme.INFO_TEXT))
+        if entry.get("tags"):
+            for tag in entry.get("tags", []):
+                if "wanikani" in tag:
+                    tags_layout.addWidget(self._create_tag_widget(tag, theme.WARNING, theme.WARNING_TEXT))
         tags_layout.addStretch()
         layout.addLayout(tags_layout)
         sense_checkboxes = []
+        sense_tag_checkboxes = []
         for i, sense in enumerate(entry.get("senses", [])):
             sense_widget = QWidget()
             sense_hlayout = QHBoxLayout(sense_widget)
@@ -988,30 +992,38 @@ class ResultsDialog(QDialog):
             cb.stateChanged.connect(self.update_confirm_button_state)
             sense_checkboxes.append(cb)
             sense_hlayout.addWidget(cb, alignment=Qt.AlignmentFlag.AlignTop)
-            
+
             vbox = QVBoxLayout()
             vbox.setContentsMargins(0, 0, 0, 0)
-            vbox.setSpacing(2) 
-            
+            vbox.setSpacing(2)
+
             # 1. Parts of Speech
             pos = ", ".join(sense.get("parts_of_speech", []))
             if pos:
                 pos_label = QLabel(f"<i style='color: {theme.TEXT_TERTIARY};'>{pos}</i>")
                 vbox.addWidget(pos_label)
-            
+
             # 2. English Definitions
             defs = "; ".join(sense.get("english_definitions", []))
             def_label = QLabel(f"<b>{i+1}.</b> {defs}")
             def_label.setWordWrap(True)
             vbox.addWidget(def_label)
-            
-            # 3. Additional Info
+
+            # 3. Tags + Info (texto estilizado, mesma linha, alinhados à esquerda)
+            all_tags_info = []
+            if sense.get("tags"):
+                all_tags_info.extend(sense["tags"])
             if sense.get("info"):
-                for info_text in sense["info"]:
-                    info_label = QLabel(f"<span style='color:{theme.TEXT_SECONDARY};font-style:italic;font-size:12px;'>{info_text}</span>")
-                    info_label.setWordWrap(True)
-                    vbox.addWidget(info_label)
+                all_tags_info.extend(sense["info"])
             
+            if all_tags_info:
+                combined_text = ", ".join([item.replace('\n', ' ').replace('\r', '') for item in all_tags_info])
+                tag_info_label = QLabel(combined_text)
+                tag_info_label.setStyleSheet(f"color: {theme.TEXT_SECONDARY}; font-style: italic; font-size: 12px;")
+                tag_info_label.setWordWrap(True)
+                tag_info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                vbox.addWidget(tag_info_label)
+
             sense_hlayout.addLayout(vbox, 1)
             layout.addWidget(sense_widget)
             
@@ -1028,6 +1040,7 @@ class ResultsDialog(QDialog):
         self.entry_widgets.append({
             "widget": entry_card,
             "sense_checkboxes": sense_checkboxes,
+            "sense_tag_checkboxes": sense_tag_checkboxes,
             "other_forms_checkboxes": other_forms_checkboxes,
             "entry_data": entry
         })
@@ -1139,29 +1152,57 @@ def apply_mappings_and_fill(note, entry: Dict[str, Any], selected_senses, select
     config = load_config()
     mappings = config.get("mappings", [])
     fill_mode = config.get("fill_mode", "replace")
+
     def set_field(field_name: str, value: str):
         if not value or field_name not in note:
             return
-        if fill_mode == 'append' and note[field_name] and value not in note[field_name]:
-            note[field_name] += f" {value}"
+        # Lógica de preenchimento (append/replace)
+        current_content = note[field_name]
+        if fill_mode == 'append' and current_content and value not in current_content:
+            # Para evitar duplicatas e espaços desnecessários
+            if current_content.endswith(' '):
+                note[field_name] += value
+            else:
+                note[field_name] += f" {value}"
         else:
             note[field_name] = value
+
     first_jap = entry["japanese"][0]
     field_values = {}
+
+    import re
     for mapping in mappings:
         field_name = mapping.get("field", "")
         map_type = mapping.get("jisho", "")
         if not field_name or not map_type:
             continue
+
         value = ""
         if map_type == "Part of speech":
-            pos_list = {pos for s in selected_senses for pos in s.get("parts_of_speech", [])}
-            value = "; ".join(sorted(pos_list))
+            # Coleta as 'parts of speech' mantendo a ordem e removendo duplicatas, removendo "with 'x' ending"
+            ordered_pos = []
+            for s in selected_senses:
+                for pos in s.get("parts_of_speech", []):
+                    cleaned = re.sub(r" with '.*?' ending", "", pos)
+                    if cleaned not in ordered_pos:
+                        ordered_pos.append(cleaned)
+            value = "; ".join(ordered_pos)
         elif map_type == "Meaning":
             value = " | ".join(["; ".join(s.get("english_definitions", [])) for s in selected_senses])
         elif map_type == "Info":
-            info_list = {info for s in selected_senses for info in s.get("info", [])}
-            value = " | ".join(sorted(info_list))
+            ordered_info = []
+            for s in selected_senses:
+                for info in s.get("info", []):
+                    if info not in ordered_info:
+                        ordered_info.append(info)
+            value = "; ".join(ordered_info)
+        elif map_type == "Tags":
+            ordered_tags = []
+            for s in selected_senses:
+                for tag in s.get("tags", []):
+                    if tag not in ordered_tags:
+                        ordered_tags.append(tag)
+            value = "; ".join(ordered_tags)
         elif map_type == "Other forms":
             value = ", ".join(selected_other_forms) if selected_other_forms else ""
         elif map_type == "Word":
@@ -1169,15 +1210,29 @@ def apply_mappings_and_fill(note, entry: Dict[str, Any], selected_senses, select
         elif map_type == "Reading":
             value = first_jap.get("reading", "")
         elif map_type == "JLPT Level":
-            value = ", ".join(entry.get("jlpt", []))
+            value = ", ".join(entry.get("jlpt", [])) if entry.get("jlpt") else ""
+        elif map_type == "Wanikani Level":
+            # Esta lógica já estava correta, buscando apenas as tags de "wanikani" no nível principal.
+            value = ", ".join([tag for tag in entry.get("tags", []) if "wanikani" in tag]) if entry.get("tags") else ""
+        elif map_type == "Is_Common":
+            value = "common word" if entry.get("is_common") else ""
+
         if value:
             field_values.setdefault(field_name, []).append(value)
+
     for field_name, values in field_values.items():
-        set_field(field_name, " | ".join(v for v in values if v))
+        print(f"Preenchendo campo {field_name} com valores: {values}")
+        final_text = "; ".join(v for v in values if v)
+        set_field(field_name, final_text)
+
     try:
-        note.flush()
-    except AttributeError:
-        showWarning("Error saving note: flush method not found.")
+        if note.id == 0:
+            mw.col.add_note(note, mw.col.decks.current()['id'])
+        else:
+            # Substituindo o método obsoleto flush()
+            mw.col.update_note(note)
+    except Exception as e:
+        showWarning(f"Error saving note: {str(e)}")
 
 # -------------------------
 # Main Lookup Flow & Hooks
@@ -1232,7 +1287,7 @@ def add_jisho_editor_button(buttons: List[Any], editor: Any):
     return buttons
 
 def setup_menu_action():
-    """Add Anki Jisho Connect Settings to shared GRKN menu (creates if needed)."""
+    """Add GRKN Anki Jisho Connect Settings to shared GRKN menu (creates if needed)."""
     action = QAction(_("settings_title"), mw)
     
     def show_dialog():

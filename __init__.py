@@ -178,6 +178,7 @@ TRANSLATIONS = {
         "field_mapping": "Field Mapping (Jisho → Anki)",
         "add_mapping": "+ Add Mapping",
         "disable_warning": "Disable multi-word selection warning",
+        "remove_pos_ending": "Remove 'with x ending' from Part of speech",
         "save_and_close": "Save and Close",
         "warning_fill_mappings": "Fill all mapping pairs before saving.",
         "info_settings_saved": "Settings saved!",
@@ -217,6 +218,7 @@ TRANSLATIONS = {
         "field_mapping": "Mapeamento de Campos (Jisho → Anki)",
         "add_mapping": "+ Adicionar Mapeamento",
         "disable_warning": "Desativar aviso de seleção de múltiplas palavras",
+        "remove_pos_ending": "Remover 'with x ending' de Classe Gramatical",
         "save_and_close": "Salvar e Fechar",
         "warning_fill_mappings": "Preencha todos os pares de mapeamento antes de salvar.",
         "info_settings_saved": "Configurações salvas!",
@@ -287,7 +289,8 @@ DEFAULT_CONFIG = {
     "search_field": "N/A",
     "mappings": {},
     "fill_mode": "replace",
-    "disable_multi_word_warning": False
+    "disable_multi_word_warning": False,
+    "remove_pos_ending": True
 }
 
 def load_config() -> Dict[str, Any]:
@@ -399,10 +402,12 @@ class ConfigDialog(QDialog):
 
         # --- Opções Adicionais e Botão Salvar ---
         self.warn_checkbox = QCheckBox()
+        self.remove_pos_checkbox = QCheckBox()
         self.save_button = QPushButton()
         self.save_button.setStyleSheet("padding: 8px; font-weight: bold;")
         
         main_layout.addWidget(self.warn_checkbox)
+        main_layout.addWidget(self.remove_pos_checkbox)
         main_layout.addWidget(self.save_button)
 
         self.scroll_area = scroll_area
@@ -428,6 +433,7 @@ class ConfigDialog(QDialog):
         self.mapping_group.setTitle(_("field_mapping"))
         self.add_btn.setText(_("add_mapping"))
         self.warn_checkbox.setText(_("disable_warning"))
+        self.remove_pos_checkbox.setText(_("remove_pos_ending"))
         self.save_button.setText(_("save_and_close"))
 
     def _language_changed(self):
@@ -486,6 +492,7 @@ class ConfigDialog(QDialog):
         self.card_type_dropdown.setCurrentText(self.config.get("card_type", ""))
         self.fill_mode_dropdown.setCurrentIndex(1 if self.config.get("fill_mode") == "append" else 0)
         self.warn_checkbox.setChecked(self.config.get("disable_multi_word_warning", False))
+        self.remove_pos_checkbox.setChecked(self.config.get("remove_pos_ending", True))
         
         self.update_fields() 
         self.load_mapping_rows()
@@ -650,7 +657,8 @@ class ConfigDialog(QDialog):
             "search_field": self.search_field_dropdown.currentText(),
             "mappings": self.mapping_rows_data,
             "fill_mode": "append" if self.fill_mode_dropdown.currentIndex() == 1 else "replace",
-            "disable_multi_word_warning": self.warn_checkbox.isChecked()
+            "disable_multi_word_warning": self.warn_checkbox.isChecked(),
+            "remove_pos_ending": self.remove_pos_checkbox.isChecked()
         })
         save_config(self.config)
         showInfo(_("info_settings_saved"))
@@ -1179,13 +1187,15 @@ def apply_mappings_and_fill(note, entry: Dict[str, Any], selected_senses, select
 
         value = ""
         if map_type == "Part of speech":
-            # Coleta as 'parts of speech' mantendo a ordem e removendo duplicatas, removendo "with 'x' ending"
+            # Coleta as 'parts of speech' mantendo a ordem e removendo duplicatas
             ordered_pos = []
+            remove_ending = config.get("remove_pos_ending", True)
             for s in selected_senses:
                 for pos in s.get("parts_of_speech", []):
-                    cleaned = re.sub(r" with '.*?' ending", "", pos)
-                    if cleaned not in ordered_pos:
-                        ordered_pos.append(cleaned)
+                    if remove_ending:
+                        pos = re.sub(r" with '.*?' ending", "", pos)
+                    if pos not in ordered_pos:
+                        ordered_pos.append(pos)
             value = "; ".join(ordered_pos)
         elif map_type == "Meaning":
             value = " | ".join(["; ".join(s.get("english_definitions", [])) for s in selected_senses])
@@ -1227,9 +1237,10 @@ def apply_mappings_and_fill(note, entry: Dict[str, Any], selected_senses, select
 
     try:
         if note.id == 0:
+            # Nova nota - adicionar à coleção
             mw.col.add_note(note, mw.col.decks.current()['id'])
         else:
-            # Substituindo o método obsoleto flush()
+            # Nota existente - atualizar
             mw.col.update_note(note)
     except Exception as e:
         showWarning(f"Error saving note: {str(e)}")
